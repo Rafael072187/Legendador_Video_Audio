@@ -4,9 +4,9 @@ from pydub import AudioSegment
 
 # Aqui estou transformado todo esse código em uma função
 def legendar(arquivo_video):
-    """ Ao chama o arquivo onde está localizado o vídeo e usado o (.name) e o (.split) passando para ele o ("."), ele ira me devolver uma lista com
-    o nome do arquivo[] e seu formato[], assim me retorna dois item, eu só tenho que pega o item de indice 1 quer será 
-    o formato """
+    """ Ao chama o arquivo onde está localizado o vídeo e usado o (.name) pois o (.split) precisa de uma string(nome) nesse caso para funciona, 
+    e o (.split) passando para ele o (".") ele ira me devolver uma lista com o nome do arquivo[] e seu formato[], 
+    assim me retorna dois item, eu só tenho que pega o item de indice 1 quer será o formato """
     formato_arq = arquivo_video.name.split(".")[1]
     # O (AudioSegment) do pydub ira recebe essa duas informações: o arquivo e o formato, e retorna-lo na forma de audio
     audio = AudioSegment.from_file(file=arquivo_video, format= formato_arq)
