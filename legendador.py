@@ -4,13 +4,14 @@ from pydub import AudioSegment
 
 # Aqui estou transformado todo esse código em uma função
 def legendar(arquivo_video):
-    """ Ao fazer o arquivo onde está localizado o vídeo e usado o .split e passando para ele o ("."), ele ira me devolver uma lista com
-    o nome do arquivo[] e seu formato[], ele me devolvendo dois item, eu só tenho que pega o item de indice 1 quer será 
+    """ Ao chama o arquivo onde está localizado o vídeo e usado o (.name) e o (.split) passando para ele o ("."), ele ira me devolver uma lista com
+    o nome do arquivo[] e seu formato[], assim me retorna dois item, eu só tenho que pega o item de indice 1 quer será 
     o formato """
-    formato_arq = arquivo_video.split(".")[1]
+    formato_arq = arquivo_video.name.split(".")[1]
+    # O (AudioSegment) do pydub ira recebe essa duas informações: o arquivo e o formato, e retorna-lo na forma de audio
     audio = AudioSegment.from_file(file=arquivo_video, format= formato_arq)
 
-    """ Agora irei pegar o audio extraido, usado .export para exportá-lo nisso tem que passa dois parâmentros o nome do arquivo de audio
+    """ Agora irei pegar o audio extraido, usado .export para exportá-lo, nisso temos que passa dois parâmentros o nome do arquivo de audio
     e o formato dele """
     audio.export("audio.mp3", format="mp3")
 
@@ -26,11 +27,13 @@ def legendar(arquivo_video):
         transcricao = cliente.audio.transcriptions.create(
             model="whisper-1", # Modelo mais barato atualmente
             file=arquivo,
-            language="pt", # Aqui ao passar o idioma usado, ele não tera quer idetificar o idioma facilitando o trabalho
+            language="pt", # Aqui ao passar o idioma usado, assim ele não tera quer idetificar o idioma, facilitando o trabalho
             response_format="srt" # O formato srt(SubRip Subtitle) é o formanto padrão de criação de legendas e mais comum de ser usado
             )
-    print(transcricao)
 
-    # Aqui estou criando o arquivo da legenda abrindo e escrevendo(w) o texto, usando o encoding(utf-8) por conta dos caracteres especiais do idioma pt.
+    # Aqui estou criando o arquivo da legenda, abrindo e escrevendo(w) o texto, usando o encoding(utf-8) por conta dos caracteres especiais do idioma pt.
     with open("legenda.srt", "w", encoding="utf-8") as arquivo_legenda:
         arquivo_legenda.write(transcricao)
+
+    # E por fim ele vai me devolver essa transcrição, pois com ela posso exiber ou utilizar ela em outro lugar
+    return transcricao
