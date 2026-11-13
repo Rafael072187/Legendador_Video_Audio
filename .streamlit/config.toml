@@ -1,0 +1,14 @@
+# Configuração do servidor Streamlit.
+#
+# O padrão do Streamlit é recusar uploads acima de 200 MB, que é pouco para
+# vídeo. Como o trabalho é todo local, o limite não protege nada — só atrapalha.
+#
+# Para arquivos ainda maiores, use a opção "Caminho no disco" na interface:
+# ela lê o arquivo direto do seu computador, sem upload e sem limite.
+
+[server]
+maxUploadSize = 2048        # MB
+maxMessageSize = 2048       # MB (mensagens do websocket)
+
+[browser]
+gatherUsageStats = false    # nenhuma telemetria sai da máquina
