@@ -6,9 +6,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from streamlit.testing.v1 import AppTest
-
 from conftest import APP, SRT_FALSO
+from streamlit.testing.v1 import AppTest
 
 EXTRACAO = "Extrair legenda"
 INSERCAO = "Inserir legenda"
@@ -128,11 +127,32 @@ def test_insercao_avisa_quando_o_video_e_outro(
 
     outro = tmp_path / "outro.mp4"
     outro.write_bytes(midia_teste.read_bytes())
-    at.text_input[0].set_value(str(outro))
+    next(t for t in at.text_input if t.label == "Selecione o vídeo").set_value(
+        str(outro)
+    )
     at.run()
 
     assert not at.exception
     assert any("extraída de outro vídeo" in w.value for w in at.warning)
+
+
+def test_insercao_nao_avisa_se_for_o_mesmo_video_por_outro_caminho(
+    midia_teste, transcricao_mockada
+):
+    """Escolher o mesmo arquivo em 'Caminho no disco' não é usar outro vídeo."""
+    at = _abrir()
+    _legendar_upload(at, midia_teste)
+    _trocar_de_tela(at, INSERCAO)
+
+    _radio(at, "Vídeo onde a legenda entra").set_value("Caminho no disco")
+    at.run()
+    next(t for t in at.text_input if t.label == "Selecione o vídeo").set_value(
+        str(midia_teste)
+    )
+    at.run()
+
+    assert not at.exception
+    assert not any("extraída de outro vídeo" in w.value for w in at.warning)
 
 
 # --------------------------------------------------------------------------- #
@@ -140,8 +160,23 @@ def test_insercao_avisa_quando_o_video_e_outro(
 # --------------------------------------------------------------------------- #
 
 
-def test_insercao_queimada_pelo_app(midia_teste, transcricao_mockada, tmp_path):
+def test_insercao_queimada_pelo_app(
+    midia_teste, transcricao_mockada, tmp_path, monkeypatch
+):
     """Fluxo completo: extrair numa tela e queimar na outra."""
+    import tela_inserir
+
+    # O app prova a sincronia tirando um quadro do vídeo final. Aqui a gente
+    # espiona o pedido para saber de onde e de que instante o quadro saiu.
+    pedidos: list[tuple[Path, float]] = []
+    original = tela_inserir.extrair_quadro
+
+    def espiao(video, segundos, destino_quadro, largura=720):
+        pedidos.append((Path(video), segundos))
+        return original(video, segundos, destino_quadro, largura=largura)
+
+    monkeypatch.setattr(tela_inserir, "extrair_quadro", espiao)
+
     destino = tmp_path / "final.mp4"
 
     at = _abrir()
@@ -164,8 +199,14 @@ def test_insercao_queimada_pelo_app(midia_teste, transcricao_mockada, tmp_path):
     assert any("Legenda aplicada em" in s.value for s in at.success)
     assert any(m.label == "Modo" and m.value == "Queimada" for m in at.metric)
 
-    # Prova de sincronia: o app mostra um quadro do próprio vídeo final.
-    assert at.image, "a tela deveria mostrar um quadro do resultado"
+    # O quadro de conferência vem do arquivo final, num instante que está
+    # dentro do bloco de legenda — é isso que mostra a sincronia na tela.
+    assert pedidos, "a tela deveria extrair um quadro do vídeo final"
+    video_do_quadro, instante = pedidos[0]
+    assert video_do_quadro == destino
+    assert 0.5 <= instante <= 1.8, (
+        f"o quadro deveria sair de dentro do bloco (0,5–1,8 s), veio de {instante:.2f}s"
+    )
 
 
 def test_insercao_embutida_pelo_app(midia_teste, transcricao_mockada, tmp_path):
@@ -176,7 +217,12 @@ def test_insercao_embutida_pelo_app(midia_teste, transcricao_mockada, tmp_path):
     _legendar_upload(at, midia_teste)
     _trocar_de_tela(at, INSERCAO)
 
+    # Trocar o modo troca o campo de destino (cada modo tem seu nome padrão),
+    # então o rerun vem antes de preencher o caminho.
     _radio(at, "Modo").set_value("embutir")
+    at.run()
+    assert not at.exception
+
     next(t for t in at.text_input if t.label == "Salvar como").set_value(str(destino))
     at.run()
 
@@ -250,9 +296,9 @@ def test_srt_enviado_na_mao_e_usado(midia_teste, tmp_path):
     _radio(at, "Vídeo onde a legenda entra").set_value("Caminho no disco")
     at.run()
     # text_input[0] é o caminho do vídeo; o "Salvar como" vem depois.
-    next(
-        t for t in at.text_input if "Vídeo" in t.label or t.label == "Selecione o vídeo"
-    ).set_value(str(midia_teste))
+    next(t for t in at.text_input if t.label == "Selecione o vídeo").set_value(
+        str(midia_teste)
+    )
     at.run()
 
     next(t for t in at.text_input if t.label == "Salvar como").set_value(str(destino))

@@ -88,8 +88,8 @@ def _escolher_legenda(resultado) -> str | None:
 
 def _escolher_video(
     midia: dict | None,
-) -> tuple[object, str, str] | tuple[None, str, None]:
-    """Devolve (entrada, nome, chave) do vídeo onde a legenda vai entrar."""
+) -> tuple[object, str, str, int] | tuple[None, str, None, int]:
+    """Devolve (entrada, nome, chave, tamanho) do vídeo onde a legenda entra."""
     opcoes = ([DA_EXTRACAO] if midia is not None else []) + [CAMINHO, UPLOAD]
 
     fonte = st.radio(
@@ -105,7 +105,12 @@ def _escolher_video(
 
     if fonte == DA_EXTRACAO and midia is not None:
         st.caption(f"**{midia['nome']}** · mesmo arquivo de onde a legenda saiu")
-        return midia["entrada"], midia["nome"], midia["chave"]
+        return (
+            midia["entrada"],
+            midia["nome"],
+            midia["chave"],
+            midia.get("tamanho", 0),
+        )
 
     escolha = campo_arquivo(
         UPLOAD if fonte == UPLOAD else CAMINHO,
@@ -113,10 +118,10 @@ def _escolher_video(
         rotulo="Selecione o vídeo",
     )
     if escolha is None:
-        return None, "", None
+        return None, "", None, 0
 
     st.caption(escolha.rotulo)
-    return escolha.entrada, escolha.nome, escolha.chave
+    return escolha.entrada, escolha.nome, escolha.chave, escolha.tamanho
 
 
 def _verificar_sincronia(resultado_ins, resultado_extracao) -> None:
@@ -211,13 +216,19 @@ def render() -> None:
     if legenda is None:
         return
 
-    video, _nome, chave_video = _escolher_video(midia)
+    video, nome_video, chave_video, tamanho_video = _escolher_video(midia)
     if video is None:
         return
 
     # Legenda de um vídeo aplicada em outro: os tempos podem não bater.
-    chave_origem = (midia or {}).get("chave")
-    if chave_origem and chave_video and chave_origem != chave_video:
+    # Mesmo arquivo escolhido por outro caminho (ex.: "Caminho no disco" em vez
+    # de "Vídeo da extração") não é outro vídeo: confere nome e tamanho também.
+    origem = midia or {}
+    chave_origem = origem.get("chave")
+    mesmo_arquivo = chave_origem == chave_video or (
+        origem.get("nome") == nome_video and origem.get("tamanho", -1) == tamanho_video
+    )
+    if chave_origem and chave_video and not mesmo_arquivo:
         st.warning(
             "A legenda foi extraída de outro vídeo. Se os tempos não baterem, "
             "gere a legenda a partir deste mesmo arquivo."

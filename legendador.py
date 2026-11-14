@@ -292,9 +292,14 @@ def transcrever(
     modelo: str = MODELO_PADRAO,
     dispositivo: str | None = None,
     duracao: float | None = None,
+    vad: bool = True,
     progresso: Progresso | None = None,
 ) -> tuple[str, str | None, float, list[Legenda], float]:
     """Transcreve um áudio localmente.
+
+    `vad` liga o filtro de silêncio: ele pula os trechos sem fala, o que acelera
+    e evita alucinação em áudio vazio — mas também descarta canto e fala sobre
+    música. Desligue quando o conteúdo for cantado.
 
     Devolve (srt, idioma detectado, confiança do idioma, legendas, tempo gasto).
     """
@@ -308,8 +313,8 @@ def transcrever(
         str(audio),
         language=idioma,
         word_timestamps=True,
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500},
+        vad_filter=vad,
+        vad_parameters={"min_silence_duration_ms": 500} if vad else None,
     )
 
     # A transcrição só acontece enquanto o gerador é consumido.
@@ -356,6 +361,7 @@ def legendar(
     modelo: str = MODELO_PADRAO,
     dispositivo: str | None = None,
     formato: str = "srt",
+    vad: bool = True,
     progresso: Progresso | None = None,
 ) -> ResultadoLegenda:
     """Gera a legenda de um arquivo de vídeo ou áudio.
@@ -395,6 +401,7 @@ def legendar(
             modelo=modelo,
             dispositivo=dispositivo,
             duracao=duracao,
+            vad=vad,
             progresso=progresso,
         )
 

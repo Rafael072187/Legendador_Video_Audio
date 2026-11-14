@@ -45,6 +45,11 @@ def _criar_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--saida", default=None, help="caminho do arquivo gerado")
     parser.add_argument(
+        "--sem-vad",
+        action="store_true",
+        help="não ignora silêncios (use em música cantada ou fala sobre música)",
+    )
+    parser.add_argument(
         "--baixar-modelo",
         metavar="NOME",
         help="baixa um modelo Whisper e sai (use 'todos' para todos)",
@@ -79,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
             modelo=args.modelo,
             dispositivo=args.dispositivo,
             formato=args.formato,
+            vad=not args.sem_vad,
             progresso=lambda mensagem: print(f"  {mensagem}"),
         )
     except ErroLegendagem as exc:

@@ -26,6 +26,7 @@ class Escolha:
     nome: str
     chave: str
     rotulo: str
+    tamanho: int = 0
 
 
 def formatar_tamanho(tamanho_bytes: int) -> str:
@@ -128,6 +129,7 @@ def campo_arquivo(
                 f"**{caminho.name}** · {formatar_tamanho(detalhes.st_size)}"
                 " · lido direto do disco"
             ),
+            tamanho=detalhes.st_size,
         )
 
     limite = st.config.get_option("server.maxUploadSize")
@@ -159,4 +161,5 @@ def campo_arquivo(
         nome=arquivo.name,
         chave=chave_do_arquivo(arquivo.name, dados),
         rotulo=f"**{arquivo.name}** · {formatar_tamanho(len(dados))}",
+        tamanho=len(dados),
     )

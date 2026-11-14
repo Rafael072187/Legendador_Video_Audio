@@ -63,6 +63,7 @@ def transcricao_mockada(monkeypatch):
         modelo=None,
         dispositivo=None,
         duracao=None,
+        vad=True,
         progresso=None,
     ):
         chamadas.append(
@@ -71,6 +72,7 @@ def transcricao_mockada(monkeypatch):
                 "idioma": idioma,
                 "modelo": modelo,
                 "dispositivo": dispositivo,
+                "vad": vad,
             }
         )
         return SRT_FALSO, "pt", 0.99, [], 1.0

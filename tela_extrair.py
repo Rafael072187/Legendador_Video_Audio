@@ -85,8 +85,8 @@ def _exibir_resultado(resultado: ResultadoLegenda) -> None:
         st.code(resultado.srt, language="srt")
 
 
-def _opcoes_na_barra_lateral() -> tuple[str | None, str, str, str | None]:
-    """Desenha os seletores e devolve (idioma, modelo, formato, dispositivo)."""
+def _opcoes_na_barra_lateral() -> tuple[str | None, str, str, str | None, bool]:
+    """Desenha os seletores e devolve (idioma, modelo, formato, dispositivo, vad)."""
     with st.sidebar:
         st.subheader("Opções de extração")
 
@@ -105,12 +105,22 @@ def _opcoes_na_barra_lateral() -> tuple[str | None, str, str, str | None]:
             else ("cuda" if "CUDA" in escolha else "cpu")
         )
 
+        vad = st.checkbox(
+            "Ignorar trechos sem fala",
+            value=True,
+            help=(
+                "Pula os silêncios: é mais rápido e evita texto inventado em áudio "
+                "vazio. Desmarque em **música cantada** ou fala sobre música — "
+                "o filtro descarta o canto."
+            ),
+        )
+
         st.caption(
             "O áudio é convertido para 16 kHz mono antes da transcrição, "
             "o que acelera o processo sem perda de qualidade."
         )
 
-    return IDIOMAS[idioma], MODELOS[modelo], FORMATOS[formato], dispositivo
+    return IDIOMAS[idioma], MODELOS[modelo], FORMATOS[formato], dispositivo, vad
 
 
 def render() -> None:
@@ -121,7 +131,7 @@ def render() -> None:
         "Whisper. Nenhum dado sai do seu computador e não há custo por minuto."
     )
 
-    idioma, modelo, formato, dispositivo = _opcoes_na_barra_lateral()
+    idioma, modelo, formato, dispositivo, vad = _opcoes_na_barra_lateral()
 
     origem = st.radio(
         "Origem do arquivo",
@@ -143,7 +153,7 @@ def render() -> None:
     if escolha is None:
         return
 
-    opcoes = (idioma, modelo, formato, dispositivo)
+    opcoes = (idioma, modelo, formato, dispositivo, vad)
 
     # Se o usuário trocou de arquivo, o resultado anterior não vale mais.
     if st.session_state.get(CHAVE_ARQUIVO) != escolha.chave:
@@ -177,6 +187,7 @@ def render() -> None:
                         modelo=modelo,
                         dispositivo=dispositivo,
                         formato=formato,
+                        vad=vad,
                         progresso=atualizar,
                     )
                 except ErroLegendagem as exc:
@@ -196,6 +207,7 @@ def render() -> None:
                         "entrada": escolha.entrada,
                         "nome": escolha.nome,
                         "chave": escolha.chave,
+                        "tamanho": escolha.tamanho,
                     }
 
     resultado = st.session_state.get(CHAVE_RESULTADO)

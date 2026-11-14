@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from conftest import APP, RAIZ, SRT_FALSO
 from streamlit.testing.v1 import AppTest
 
 import legendador
@@ -308,7 +309,9 @@ def test_ui_legenda_por_caminho_no_disco(midia_teste, transcricao_mockada):
     at.run()
     assert not at.exception
 
-    next(r for r in at.radio if r.label == "Origem do arquivo").set_value("Caminho no disco")
+    next(r for r in at.radio if r.label == "Origem do arquivo").set_value(
+        "Caminho no disco"
+    )
     at.run()
     assert not at.file_uploader, "o upload não deve aparecer neste modo"
 
@@ -328,10 +331,62 @@ def test_ui_caminho_inexistente_mostra_erro():
     at = AppTest.from_file(str(APP), default_timeout=60)
     at.run()
 
-    next(r for r in at.radio if r.label == "Origem do arquivo").set_value("Caminho no disco")
+    next(r for r in at.radio if r.label == "Origem do arquivo").set_value(
+        "Caminho no disco"
+    )
     at.run()
     at.text_input[0].set_value(r"C:\pasta\que\nao\existe\video.mp4")
     at.run()
 
     assert not at.exception
     assert any("não encontrado" in e.value for e in at.error)
+
+
+def test_ui_vad_ligado_por_padrao(midia_teste, transcricao_mockada):
+    """O filtro de silêncio vem ligado: é o comportamento certo para fala."""
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.run()
+    assert next(c for c in at.checkbox if c.label == "Ignorar trechos sem fala").value
+
+    at.file_uploader[0].set_value(("teste.mp4", midia_teste.read_bytes(), "video/mp4"))
+    at.run()
+    next(b for b in at.button if b.label == "Gerar legenda").click()
+    at.run()
+
+    assert not at.exception
+    assert transcricao_mockada[0]["vad"] is True
+
+
+def test_ui_desligar_vad_repassa_para_a_transcricao(midia_teste, transcricao_mockada):
+    """Música cantada precisa rodar sem o filtro: o canto é descartado por ele."""
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.run()
+
+    at.file_uploader[0].set_value(("teste.mp4", midia_teste.read_bytes(), "video/mp4"))
+    at.run()
+    next(c for c in at.checkbox if c.label == "Ignorar trechos sem fala").uncheck()
+    at.run()
+    next(b for b in at.button if b.label == "Gerar legenda").click()
+    at.run()
+
+    assert not at.exception
+    assert transcricao_mockada[0]["vad"] is False
+
+
+def test_ui_trocar_o_vad_invalida_o_resultado(midia_teste, transcricao_mockada):
+    """O VAD muda o resultado: reaproveitar o anterior seria mentira."""
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.run()
+
+    at.file_uploader[0].set_value(("teste.mp4", midia_teste.read_bytes(), "video/mp4"))
+    at.run()
+    next(b for b in at.button if b.label == "Gerar legenda").click()
+    at.run()
+    assert len(transcricao_mockada) == 1
+
+    next(c for c in at.checkbox if c.label == "Ignorar trechos sem fala").uncheck()
+    at.run()
+    next(b for b in at.button if b.label == "Gerar legenda").click()
+    at.run()
+
+    assert len(transcricao_mockada) == 2, "deveria transcrever de novo sem o filtro"

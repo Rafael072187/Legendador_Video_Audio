@@ -236,10 +236,16 @@ def _executar(
     )
 
     assert processo.stdout is not None
+
+    # O ffmpeg escreve o progresso várias vezes por segundo; sem o filtro, a
+    # interface receberia dezenas de atualizações com a mesma porcentagem.
+    ultimo: int | None = None
     for linha in processo.stdout:
         percentual = _percentual(linha, duracao)
-        if percentual is not None and progresso is not None:
-            progresso(f"Colocando a legenda... {percentual}%")
+        if percentual is None or progresso is None or percentual == ultimo:
+            continue
+        ultimo = percentual
+        progresso(f"Colocando a legenda... {percentual}%")
 
     processo.wait()
     erro = (processo.stderr.read() if processo.stderr else "") or ""
@@ -305,7 +311,12 @@ def inserir_legenda(
         if progresso is not None:
             progresso("Colocando a legenda...")
 
-        _executar(comando, pasta=pasta, duracao=duracao, progresso=progresso)
+        try:
+            _executar(comando, pasta=pasta, duracao=duracao, progresso=progresso)
+        except ErroLegendagem:
+            # Nada pior que um arquivo pela metade parecendo um vídeo pronto.
+            saida.unlink(missing_ok=True)
+            raise
 
     if not saida.is_file() or saida.stat().st_size == 0:
         raise ErroLegendagem("O ffmpeg não gerou o arquivo de saída.")

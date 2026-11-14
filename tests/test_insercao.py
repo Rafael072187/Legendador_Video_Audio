@@ -202,6 +202,24 @@ def test_modo_desconhecido(video_liso, tmp_path):
         )
 
 
+def test_falha_nao_deixa_arquivo_pela_metade(video_liso, tmp_path, monkeypatch):
+    """Se o ffmpeg cair no meio, o destino não pode ficar lá parecendo pronto."""
+    import insercao
+
+    destino = tmp_path / "meio.mp4"
+
+    def ffmpeg_que_falha(*_args, **_kwargs):
+        destino.write_bytes(b"lixo incompleto")
+        raise ErroLegendagem("O ffmpeg falhou ao colocar a legenda. simulado")
+
+    monkeypatch.setattr(insercao, "_executar", ffmpeg_que_falha)
+
+    with pytest.raises(ErroLegendagem, match="simulado"):
+        inserir_legenda(video_liso, SRT, destino=destino)
+
+    assert not destino.exists(), "o arquivo parcial deveria ter sido removido"
+
+
 # --------------------------------------------------------------------------- #
 # Queimar (hardsub) — a sincronia é medida em pixel
 # --------------------------------------------------------------------------- #
@@ -256,6 +274,25 @@ def test_queimar_informa_o_andamento(video_liso, tmp_path):
     )
 
     assert any("legenda" in mensagem.lower() for mensagem in mensagens)
+
+
+def test_progresso_nao_repete_a_mesma_porcentagem(video_liso, tmp_path):
+    """O ffmpeg escreve dezenas de linhas por segundo; a tela não precisa disso."""
+    mensagens: list[str] = []
+    inserir_legenda(
+        video_liso,
+        SRT,
+        modo=MODO_QUEIMAR,
+        destino=tmp_path / "queimado.mp4",
+        progresso=mensagens.append,
+    )
+
+    porcentagens = [m for m in mensagens if "%" in m]
+    assert porcentagens
+    assert len(porcentagens) == len(set(porcentagens)), (
+        "cada % deveria aparecer uma vez"
+    )
+    assert len(porcentagens) <= 100
 
 
 # --------------------------------------------------------------------------- #
