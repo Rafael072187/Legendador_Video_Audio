@@ -15,6 +15,7 @@ from legendador import (
 from ui import (
     ORIGENS,
     campo_arquivo,
+    cartao,
     formatar_duracao,
 )
 
@@ -52,7 +53,6 @@ CHAVE_MIDIA = "midia_extraida"
 
 def _exibir_resultado(resultado: ResultadoLegenda) -> None:
     """Mostra a legenda gerada e o botão de download."""
-    st.markdown("#### ✅ Resultado")
     st.success(f"Arquivo **{resultado.nome_base}** legendado com sucesso.")
 
     if resultado.idioma_detectado:
@@ -134,36 +134,38 @@ def render() -> None:
 
     idioma, modelo, formato, dispositivo, vad = _opcoes_na_barra_lateral()
 
-    origem = st.radio(
-        "Origem do arquivo",
-        ORIGENS,
-        horizontal=True,
-        key="origem_extrair",
-        help=(
-            "O caminho no disco lê o arquivo direto do seu computador: não passa "
-            "pelo navegador, não tem limite de tamanho e começa na hora."
-        ),
-    )
+    with cartao("extracao_arquivo", "📂 Arquivo"):
+        origem = st.radio(
+            "Origem do arquivo",
+            ORIGENS,
+            horizontal=True,
+            key="origem_extrair",
+            help=(
+                "O caminho no disco lê o arquivo direto do seu computador: não passa "
+                "pelo navegador, não tem limite de tamanho e começa na hora."
+            ),
+        )
 
-    escolha = campo_arquivo(
-        origem,
-        prefixo="extrair",
-        rotulo="Selecione o vídeo ou áudio",
-        tipos=EXTENSOES_SUPORTADAS,
-    )
-    if escolha is None:
-        return
+        escolha = campo_arquivo(
+            origem,
+            prefixo="extrair",
+            rotulo="Selecione o vídeo ou áudio",
+            tipos=EXTENSOES_SUPORTADAS,
+        )
+        if escolha is None:
+            return
 
-    opcoes = (idioma, modelo, formato, dispositivo, vad)
+        opcoes = (idioma, modelo, formato, dispositivo, vad)
 
-    # Se o usuário trocou de arquivo, o resultado anterior não vale mais.
-    if st.session_state.get(CHAVE_ARQUIVO) != escolha.chave:
-        st.session_state.pop(CHAVE_RESULTADO, None)
-        st.session_state.pop(CHAVE_MIDIA, None)
+        # Se o usuário trocou de arquivo, o resultado anterior não vale mais.
+        if st.session_state.get(CHAVE_ARQUIVO) != escolha.chave:
+            st.session_state.pop(CHAVE_RESULTADO, None)
+            st.session_state.pop(CHAVE_MIDIA, None)
 
-    st.caption(escolha.rotulo)
+        st.caption(escolha.rotulo)
+        pedido = st.button("Gerar legenda", type="primary")
 
-    if st.button("Gerar legenda", type="primary"):
+    if pedido:
         resultado_existente = st.session_state.get(CHAVE_RESULTADO)
 
         # Evita refazer o trabalho para o mesmo arquivo com as mesmas opções.
@@ -213,7 +215,8 @@ def render() -> None:
 
     resultado = st.session_state.get(CHAVE_RESULTADO)
     if resultado is not None:
-        _exibir_resultado(resultado)
+        with cartao("extracao_resultado", "✅ Resultado"):
+            _exibir_resultado(resultado)
 
         if st.session_state.get(CHAVE_MIDIA):
             st.caption(

@@ -22,6 +22,7 @@ from ui import (
     CAMINHO,
     UPLOAD,
     campo_arquivo,
+    cartao,
     decodificar_texto,
     formatar_duracao,
     formatar_tamanho,
@@ -212,63 +213,74 @@ def render() -> None:
             "ou envie um arquivo .srt abaixo."
         )
 
-    legenda = _escolher_legenda(resultado)
+    with cartao("inserir_legenda", "💬 1 · Legenda"):
+        legenda = _escolher_legenda(resultado)
+
     if legenda is None:
         return
 
-    video, nome_video, chave_video, tamanho_video = _escolher_video(midia)
+    with cartao("inserir_video", "🎬 2 · Vídeo"):
+        video, nome_video, chave_video, tamanho_video = _escolher_video(midia)
+
+        # Legenda de um vídeo aplicada em outro: os tempos podem não bater.
+        # Mesmo arquivo escolhido por outro caminho (ex.: "Caminho no disco" em
+        # vez de "Vídeo da extração") não é outro vídeo: confere nome e tamanho.
+        origem = midia or {}
+        chave_origem = origem.get("chave")
+        mesmo_arquivo = chave_origem == chave_video or (
+            origem.get("nome") == nome_video
+            and origem.get("tamanho", -1) == tamanho_video
+        )
+        if chave_origem and chave_video and not mesmo_arquivo:
+            st.warning(
+                "A legenda foi extraída de outro vídeo. Se os tempos não baterem, "
+                "gere a legenda a partir deste mesmo arquivo."
+            )
+
     if video is None:
         return
 
-    # Legenda de um vídeo aplicada em outro: os tempos podem não bater.
-    # Mesmo arquivo escolhido por outro caminho (ex.: "Caminho no disco" em vez
-    # de "Vídeo da extração") não é outro vídeo: confere nome e tamanho também.
-    origem = midia or {}
-    chave_origem = origem.get("chave")
-    mesmo_arquivo = chave_origem == chave_video or (
-        origem.get("nome") == nome_video and origem.get("tamanho", -1) == tamanho_video
-    )
-    if chave_origem and chave_video and not mesmo_arquivo:
-        st.warning(
-            "A legenda foi extraída de outro vídeo. Se os tempos não baterem, "
-            "gere a legenda a partir deste mesmo arquivo."
+    with cartao("inserir_modo", "⚙️ 3 · Como colocar"):
+        modo = st.radio(
+            "Modo",
+            list(ROTULOS_MODOS),
+            key="modo_insercao",
+            format_func=lambda chave: ROTULOS_MODOS[chave],
+            help=(
+                "**Queimar** reencoda o vídeo e o texto passa a fazer parte da "
+                "imagem. **Embutir** só adiciona uma faixa selecionável — é quase "
+                "instantâneo."
+            ),
         )
 
-    modo = st.radio(
-        "Modo",
-        list(ROTULOS_MODOS),
-        key="modo_insercao",
-        format_func=lambda chave: ROTULOS_MODOS[chave],
-        help=(
-            "**Queimar** reencoda o vídeo e o texto passa a fazer parte da imagem. "
-            "**Embutir** só adiciona uma faixa selecionável — é quase instantâneo."
-        ),
-    )
+        if modo == MODO_QUEIMAR:
+            st.caption(
+                "Queimada: aparece em qualquer player, celular e rede social. "
+                "O vídeo é reencodado (mais lento)."
+            )
+        else:
+            st.caption(
+                "Faixa: o vídeo é copiado sem reencodar (rápido) e a legenda pode "
+                "ser ligada e desligada no player."
+            )
 
-    if modo == MODO_QUEIMAR:
-        st.caption(
-            "Queimada: aparece em qualquer player, celular e rede social. "
-            "O vídeo é reencodado (mais lento)."
+        # O destino é editável; o padrão fica ao lado do vídeo, com outro nome.
+        destino = st.text_input(
+            "Salvar como",
+            value=str(destino_padrao(video, modo)),
+            key=f"destino_{modo}",
+            help=(
+                "Caminho completo do arquivo de saída. O vídeo original não é alterado."
+            ),
         )
-    else:
-        st.caption(
-            "Faixa: o vídeo é copiado sem reencodar (rápido) e a legenda pode ser "
-            "ligada e desligada no player."
-        )
 
-    # O destino é editável; o padrão fica ao lado do vídeo, com outro nome.
-    destino = st.text_input(
-        "Salvar como",
-        value=str(destino_padrao(video, modo)),
-        key=f"destino_{modo}",
-        help="Caminho completo do arquivo de saída. O vídeo original não é alterado.",
-    )
+        chave_entrada = f"{chave_video}::{modo}::{destino}"
+        if st.session_state.get(CHAVE_ENTRADA_INSERCAO) != chave_entrada:
+            st.session_state.pop(CHAVE_RESULTADO_INSERCAO, None)
 
-    chave_entrada = f"{chave_video}::{modo}::{destino}"
-    if st.session_state.get(CHAVE_ENTRADA_INSERCAO) != chave_entrada:
-        st.session_state.pop(CHAVE_RESULTADO_INSERCAO, None)
+        pedido = st.button("Inserir legenda", type="primary")
 
-    if st.button("Inserir legenda", type="primary"):
+    if pedido:
         with st.status("Colocando a legenda...", expanded=True) as status:
 
             def atualizar(mensagem: str) -> None:
@@ -295,4 +307,5 @@ def render() -> None:
 
     resultado_ins = st.session_state.get(CHAVE_RESULTADO_INSERCAO)
     if resultado_ins is not None:
-        _mostrar_resultado(resultado_ins, resultado)
+        with cartao("inserir_resultado", "✅ Pronto"):
+            _mostrar_resultado(resultado_ins, resultado)

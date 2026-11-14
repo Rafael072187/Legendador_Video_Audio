@@ -24,7 +24,7 @@ import streamlit as st
 
 import tela_extrair
 import tela_inserir
-from ui import aplicar_estilo, cabecalho
+from ui import aplicar_estilo, cabecalho, rodape
 
 TELAS = {
     "Extrair legenda": tela_extrair.render,
@@ -63,6 +63,7 @@ def meu_app() -> None:
         st.caption("Depois do primeiro download do modelo, tudo funciona sem internet.")
 
     TELAS[escolhida]()
+    rodape()
 
 
 # --------------------------------------------------------------------------- #

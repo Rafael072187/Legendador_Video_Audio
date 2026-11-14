@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,8 +42,8 @@ ESTILO = """
 
   /* Cabeçalho da página. */
   .ldr-hero h1 {
-    margin: 0 0 .4rem 0;
-    font-size: 2.6rem;
+    margin: 0 0 .5rem 0;
+    font-size: 2.35rem;
     font-weight: 800;
     letter-spacing: -.03em;
     line-height: 1.1;
@@ -71,12 +73,25 @@ ESTILO = """
     border-radius: 999px;
   }
 
-  /* Títulos das seções: a régua vira um fio discreto. */
+  /* Títulos das seções: menores que o título da página, com um fio discreto. */
   .stApp h2 {
-    border-bottom: 1px solid rgba(255, 255, 255, .08) !important;
-    padding-bottom: .45rem !important;
+    margin-top: .3rem !important;
+    font-size: 1.55rem !important;
     font-weight: 700;
     letter-spacing: -.01em;
+    border-bottom: none !important;
+  }
+
+  /* O divisor que o Streamlit desenha abaixo do título vem no azul dele. */
+  hr[data-testid="stHeadingDivider"] {
+    height: 1px !important;
+    border: 0 !important;
+    background: linear-gradient(
+      90deg,
+      rgba(139, 92, 246, .75),
+      rgba(56, 189, 248, .30) 45%,
+      rgba(255, 255, 255, 0) 100%
+    ) !important;
   }
 
   .stApp h5 {
@@ -128,13 +143,116 @@ ESTILO = """
     background: rgba(255, 255, 255, .05);
   }
 
-  /* Caixas de aviso e de sucesso com cantos redondos. */
+  /* Caixas de aviso e de sucesso: fundo translúcido no tom do tipo, sem a
+     barra sólida do tema padrão. O tipo vem do `data-testid` interno. */
   [data-testid="stAlert"] { border-radius: 12px; }
+
+  [data-testid="stAlertContainer"] {
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .035);
+  }
+
+  [data-testid="stAlert"]:has([data-testid="stAlertContentInfo"])
+    [data-testid="stAlertContainer"] {
+    background: rgba(56, 189, 248, .10);
+    border-color: rgba(56, 189, 248, .26);
+  }
+
+  [data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"])
+    [data-testid="stAlertContainer"] {
+    background: rgba(34, 197, 94, .10);
+    border-color: rgba(34, 197, 94, .26);
+  }
+
+  [data-testid="stAlert"]:has([data-testid="stAlertContentWarning"])
+    [data-testid="stAlertContainer"] {
+    background: rgba(245, 158, 11, .10);
+    border-color: rgba(245, 158, 11, .28);
+  }
+
+  [data-testid="stAlert"]:has([data-testid="stAlertContentError"])
+    [data-testid="stAlertContainer"] {
+    background: rgba(239, 68, 68, .10);
+    border-color: rgba(239, 68, 68, .28);
+  }
+
+  /* O texto do alerta vem na cor forte do tipo, pensada para fundo claro.
+     Sobre o fundo escuro translúcido, o corpo usa a cor de texto do tema. */
+  [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] p,
+  [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] strong {
+    color: #e2e6f0;
+  }
 
   [data-testid="stExpander"] details {
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, .08);
     background: rgba(255, 255, 255, .02);
+  }
+
+  /* Cartões das etapas. O `key` do container vira a classe st-key-cartao_*,
+     então todos os cartões compartilham uma única regra. */
+  [class*="st-key-cartao_"] {
+    padding: 1.15rem 1.3rem 1.35rem 1.3rem !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .012));
+    border: 1px solid rgba(255, 255, 255, .09) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .25);
+  }
+
+  /* Título da etapa, dentro do cartão. */
+  .ldr-etapa {
+    margin: 0 0 .9rem 0;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #a5b4fc;
+  }
+
+  /* Botão principal com preenchimento em degradê. */
+  .stButton > button[kind="primary"],
+  .stDownloadButton > button[kind="primary"] {
+    padding: .55rem 1.15rem;
+    background: linear-gradient(96deg, #7c3aed, #6366f1 55%, #0ea5e9);
+    border: none;
+    box-shadow: 0 8px 22px rgba(124, 58, 237, .35);
+  }
+
+  .stButton > button[kind="primary"]:hover,
+  .stDownloadButton > button[kind="primary"]:hover {
+    box-shadow: 0 12px 28px rgba(124, 58, 237, .45);
+  }
+
+  /* A pré-visualização da legenda também é um bloco de código. */
+  [data-testid="stCode"] pre {
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, .07) !important;
+    font-size: .82rem !important;
+  }
+
+  /* Área de upload: contorno tracejado com a cor de destaque. */
+  [data-testid="stFileUploaderDropzone"] {
+    padding: 1rem;
+    background: rgba(139, 92, 246, .06);
+    border: 1px dashed rgba(139, 92, 246, .45);
+    border-radius: 14px;
+  }
+
+  /* Navegação: a opção ativa ganha um realce. */
+  [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+    background: rgba(139, 92, 246, .16);
+    box-shadow: inset 0 0 0 1px rgba(139, 92, 246, .35);
+  }
+
+  /* Rodapé discreto no fim da página. */
+  .ldr-rodape {
+    margin-top: 2.6rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, .07);
+    font-size: .8rem;
+    color: #6b7280;
+    text-align: center;
   }
 </style>
 """
@@ -161,6 +279,27 @@ def cabecalho() -> None:
           <div class="ldr-chips">{etiquetas}</div>
         </div>
         """,
+        unsafe_allow_html=True,
+    )
+
+
+@contextmanager
+def cartao(chave: str, titulo: str) -> Iterator[None]:
+    """Cartão com borda, fundo e o título da etapa.
+
+    A `key` do container vira a classe `st-key-cartao_<chave>`, que o CSS usa
+    para desenhar todos os cartões com uma única regra.
+    """
+    with st.container(border=True, key=f"cartao_{chave}"):
+        st.markdown(f'<p class="ldr-etapa">{titulo}</p>', unsafe_allow_html=True)
+        yield
+
+
+def rodape() -> None:
+    """Fecho discreto no fim da página."""
+    st.markdown(
+        '<p class="ldr-rodape">Tudo roda na sua máquina · SRT e VTT · '
+        "queimar ou embutir</p>",
         unsafe_allow_html=True,
     )
 
