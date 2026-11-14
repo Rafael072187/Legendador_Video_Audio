@@ -52,6 +52,7 @@ CHAVE_MIDIA = "midia_extraida"
 
 def _exibir_resultado(resultado: ResultadoLegenda) -> None:
     """Mostra a legenda gerada e o botão de download."""
+    st.markdown("#### ✅ Resultado")
     st.success(f"Arquivo **{resultado.nome_base}** legendado com sucesso.")
 
     if resultado.idioma_detectado:

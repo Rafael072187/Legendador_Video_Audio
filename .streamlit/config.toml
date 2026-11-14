@@ -1,4 +1,4 @@
-# Configuração do servidor Streamlit.
+# Configuração do servidor e do tema do Streamlit.
 #
 # O padrão do Streamlit é recusar uploads acima de 200 MB, que é pouco para
 # vídeo. Como o trabalho é todo local, o limite não protege nada — só atrapalha.
@@ -12,3 +12,15 @@ maxMessageSize = 2048       # MB (mensagens do websocket)
 
 [browser]
 gatherUsageStats = false    # nenhuma telemetria sai da máquina
+
+[theme]
+base = "dark"
+primaryColor = "#8b5cf6"
+backgroundColor = "#0b0d13"
+secondaryBackgroundColor = "#151823"
+textColor = "#e8eaf2"
+font = "sans serif"
+
+[client]
+# Sem a barra "Deploy" no topo: a interface é para uso local.
+toolbarMode = "minimal"

@@ -17,6 +17,153 @@ ORIGENS = (UPLOAD, CAMINHO)
 # Acima disso o upload começa a pesar na memória do servidor.
 LIMITE_AVISO_UPLOAD = 500 * 1024 * 1024
 
+# O tema (cores, fonte) vive em .streamlit/config.toml. Aqui ficam só os
+# detalhes que o tema não alcança: gradientes, cartões e a barra lateral.
+# Seletores por `data-testid` são os pontos estáveis do DOM do Streamlit.
+ESTILO = """
+<style>
+  /* Fundo: dois brilhos suaves sobre um fundo quase preto. */
+  .stApp {
+    background:
+      radial-gradient(1100px 420px at 50% -170px, rgba(139, 92, 246, .26), transparent 72%),
+      radial-gradient(900px 380px at 100% 0%, rgba(56, 189, 248, .10), transparent 70%),
+      #0b0d13;
+  }
+
+  [data-testid="stHeader"] { background: transparent; }
+
+  [data-testid="stMainBlockContainer"] {
+    max-width: 1060px;
+    padding-top: 2.4rem;
+    padding-bottom: 4rem;
+  }
+
+  /* Cabeçalho da página. */
+  .ldr-hero h1 {
+    margin: 0 0 .4rem 0;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    line-height: 1.1;
+    background: linear-gradient(96deg, #c4b5fd 0%, #ffffff 46%, #7dd3fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .ldr-hero p {
+    margin: 0 0 1rem 0;
+    max-width: 720px;
+    color: #98a2b3;
+    font-size: 1.02rem;
+    line-height: 1.5;
+  }
+
+  .ldr-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+  .ldr-chips span {
+    padding: .3rem .75rem;
+    font-size: .82rem;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 999px;
+  }
+
+  /* Títulos das seções: a régua vira um fio discreto. */
+  .stApp h2 {
+    border-bottom: 1px solid rgba(255, 255, 255, .08) !important;
+    padding-bottom: .45rem !important;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+
+  .stApp h5 {
+    margin-bottom: .35rem !important;
+    color: #a5b4fc;
+    font-weight: 600;
+  }
+
+  /* Métricas como cartõezinhos. */
+  [data-testid="stMetric"] {
+    height: 100%;
+    padding: .7rem .9rem;
+    background: rgba(255, 255, 255, .035);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+  }
+
+  [data-testid="stMetricValue"] { font-size: 1.4rem; font-weight: 700; }
+
+  [data-testid="stMetricLabel"] { opacity: .75; }
+
+  /* Botões com um pouco mais de corpo. */
+  .stButton > button, .stDownloadButton > button {
+    border-radius: 10px;
+    font-weight: 600;
+    transition: transform .08s ease, box-shadow .15s ease;
+  }
+
+  .stButton > button:hover, .stDownloadButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
+  }
+
+  /* Barra lateral. */
+  [data-testid="stSidebar"] {
+    background: #0f1218;
+    border-right: 1px solid rgba(255, 255, 255, .06);
+  }
+
+  [data-testid="stSidebar"] [role="radiogroup"] { gap: .2rem; }
+
+  [data-testid="stSidebar"] [role="radiogroup"] > label {
+    padding: .5rem .6rem;
+    border-radius: 9px;
+    transition: background .12s ease;
+  }
+
+  [data-testid="stSidebar"] [role="radiogroup"] > label:hover {
+    background: rgba(255, 255, 255, .05);
+  }
+
+  /* Caixas de aviso e de sucesso com cantos redondos. */
+  [data-testid="stAlert"] { border-radius: 12px; }
+
+  [data-testid="stExpander"] details {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: rgba(255, 255, 255, .02);
+  }
+</style>
+"""
+
+CHIPS = ("🔒 100% local", "⚡ faster-whisper", "🎬 queima ou faixa")
+
+
+def aplicar_estilo() -> None:
+    """Injeta o CSS da interface. Precisa rodar em cada rerun."""
+    st.markdown(ESTILO, unsafe_allow_html=True)
+
+
+def cabecalho() -> None:
+    """Título, subtítulo e as etiquetas do topo."""
+    etiquetas = "".join(f"<span>{etiqueta}</span>" for etiqueta in CHIPS)
+    st.markdown(
+        f"""
+        <div class="ldr-hero">
+          <h1>Legendador de Vídeo e Áudio</h1>
+          <p>
+            Gere a legenda do seu vídeo com o Whisper e cole essa legenda de volta
+            no vídeo — tudo na sua máquina, sem API e sem custo por minuto.
+          </p>
+          <div class="ldr-chips">{etiquetas}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 @dataclass(frozen=True)
 class Escolha:

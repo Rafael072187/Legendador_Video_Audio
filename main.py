@@ -24,10 +24,17 @@ import streamlit as st
 
 import tela_extrair
 import tela_inserir
+from ui import aplicar_estilo, cabecalho
 
 TELAS = {
     "Extrair legenda": tela_extrair.render,
     "Inserir legenda": tela_inserir.render,
+}
+
+# Só o rótulo mostrado na navegação: o valor continua sendo o nome da tela.
+ICONES = {
+    "Extrair legenda": "🎬  Extrair legenda",
+    "Inserir legenda": "🎞️  Inserir legenda",
 }
 
 
@@ -40,20 +47,20 @@ def meu_app() -> None:
         layout="centered",
     )
 
-    st.title("Legendador de Vídeo e Áudio")
-    st.caption(
-        "🔒 **100% local e gratuito** — nada de API paga, nada sai do seu "
-        "computador. Depois do primeiro download do modelo, funciona sem internet."
-    )
+    aplicar_estilo()
+    cabecalho()
 
     with st.sidebar:
-        st.subheader("Tela")
+        st.markdown("##### Tela")
         escolhida = st.radio(
             "Tela",
             list(TELAS),
             key="tela_atual",
             label_visibility="collapsed",
+            format_func=lambda nome: ICONES[nome],
         )
+        st.divider()
+        st.caption("Depois do primeiro download do modelo, tudo funciona sem internet.")
 
     TELAS[escolhida]()
 
