@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 from legendador import (
@@ -15,6 +17,7 @@ from legendador import (
 from ui import (
     ORIGENS,
     campo_arquivo,
+    campo_pasta,
     cartao,
     formatar_duracao,
 )
@@ -51,8 +54,8 @@ CHAVE_OPCOES = "resultado_opcoes"
 CHAVE_MIDIA = "midia_extraida"
 
 
-def _exibir_resultado(resultado: ResultadoLegenda) -> None:
-    """Mostra a legenda gerada e o botão de download."""
+def _exibir_resultado(resultado: ResultadoLegenda, origem: object) -> None:
+    """Mostra a legenda gerada, o download e a opção de salvar numa pasta."""
     st.success(f"Arquivo **{resultado.nome_base}** legendado com sucesso.")
 
     if resultado.idioma_detectado:
@@ -81,6 +84,35 @@ def _exibir_resultado(resultado: ResultadoLegenda) -> None:
         mime="application/x-subrip" if resultado.srt.startswith("1\n") else "text/vtt",
         type="primary",
     )
+
+    with st.expander("💾 Salvar a legenda numa pasta", expanded=False):
+        pasta = campo_pasta(
+            "Pasta de destino",
+            chave="pasta_saida_legenda",
+            origem=origem,
+            ajuda=(
+                "Pasta onde a legenda será gravada. O padrão é a pasta do arquivo "
+                "original — troque à vontade."
+            ),
+        )
+        nome = st.text_input(
+            "Nome do arquivo",
+            value=resultado.nome_saida,
+            key="nome_saida_legenda",
+            help="Se você não puser extensão, a do formato escolhido é usada.",
+        ).strip()
+
+        alvo = (Path(pasta) / nome) if pasta is not None and nome else None
+        if st.button("Salvar legenda", disabled=alvo is None) and alvo is not None:
+            if not alvo.suffix:
+                alvo = alvo.with_suffix(Path(resultado.nome_saida).suffix)
+            try:
+                alvo.parent.mkdir(parents=True, exist_ok=True)
+                alvo.write_text(resultado.srt, encoding="utf-8")
+            except OSError as exc:
+                st.error(f"Não foi possível salvar a legenda: {exc}")
+            else:
+                st.success(f"Legenda salva em **{alvo}**.")
 
     with st.expander("Pré-visualizar legenda", expanded=True):
         st.code(resultado.srt, language="srt")
@@ -216,7 +248,7 @@ def render() -> None:
     resultado = st.session_state.get(CHAVE_RESULTADO)
     if resultado is not None:
         with cartao("extracao_resultado", "✅ Resultado"):
-            _exibir_resultado(resultado)
+            _exibir_resultado(resultado, escolha.entrada)
 
         if st.session_state.get(CHAVE_MIDIA):
             st.caption(

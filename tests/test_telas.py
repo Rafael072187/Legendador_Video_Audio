@@ -44,6 +44,18 @@ def _legendar_upload(at: AppTest, midia: Path, nome: str = "teste.mp4") -> None:
     assert not at.exception
 
 
+def _campo(at: AppTest, rotulo: str):
+    return next(t for t in at.text_input if t.label == rotulo)
+
+
+def _definir_saida(at: AppTest, pasta: Path, nome: str) -> None:
+    """Escolhe a pasta e o nome do vídeo legendado (tela 2)."""
+    _campo(at, "Pasta de destino").set_value(str(pasta))
+    at.run()
+    _campo(at, "Nome do arquivo").set_value(nome)
+    at.run()
+
+
 def _tem_faixa(video: Path, tipo: str) -> bool:
     saida = subprocess.run(
         [
@@ -185,8 +197,7 @@ def test_insercao_queimada_pelo_app(
 
     _radio(at, "Modo").set_value("queimar")
     # O destino padrão de um upload iria para a pasta do usuário: aqui é o tmp.
-    next(t for t in at.text_input if t.label == "Salvar como").set_value(str(destino))
-    at.run()
+    _definir_saida(at, tmp_path, destino.name)
 
     next(b for b in at.button if b.label == "Inserir legenda").click()
     at.run()
@@ -223,8 +234,7 @@ def test_insercao_embutida_pelo_app(midia_teste, transcricao_mockada, tmp_path):
     at.run()
     assert not at.exception
 
-    next(t for t in at.text_input if t.label == "Salvar como").set_value(str(destino))
-    at.run()
+    _definir_saida(at, tmp_path, destino.name)
 
     next(b for b in at.button if b.label == "Inserir legenda").click()
     at.run()
@@ -241,10 +251,7 @@ def test_modo_invalido_de_saida_mostra_erro(midia_teste, transcricao_mockada, tm
     _legendar_upload(at, midia_teste)
     _trocar_de_tela(at, INSERCAO)
 
-    next(t for t in at.text_input if t.label == "Salvar como").set_value(
-        str(tmp_path / "saida.txt")
-    )
-    at.run()
+    _definir_saida(at, tmp_path, "saida.txt")
 
     next(b for b in at.button if b.label == "Inserir legenda").click()
     at.run()
@@ -263,8 +270,7 @@ def test_resultado_da_insercao_e_limpo_ao_trocar_o_modo(
     _legendar_upload(at, midia_teste)
     _trocar_de_tela(at, INSERCAO)
 
-    next(t for t in at.text_input if t.label == "Salvar como").set_value(str(destino))
-    at.run()
+    _definir_saida(at, tmp_path, destino.name)
     next(b for b in at.button if b.label == "Inserir legenda").click()
     at.run()
     assert any("Legenda aplicada em" in s.value for s in at.success)
@@ -295,14 +301,13 @@ def test_srt_enviado_na_mao_e_usado(midia_teste, tmp_path):
 
     _radio(at, "Vídeo onde a legenda entra").set_value("Caminho no disco")
     at.run()
-    # text_input[0] é o caminho do vídeo; o "Salvar como" vem depois.
+    # O caminho do vídeo vem antes dos campos de saída.
     next(t for t in at.text_input if t.label == "Selecione o vídeo").set_value(
         str(midia_teste)
     )
     at.run()
 
-    next(t for t in at.text_input if t.label == "Salvar como").set_value(str(destino))
-    at.run()
+    _definir_saida(at, tmp_path, destino.name)
     next(b for b in at.button if b.label == "Inserir legenda").click()
     at.run()
 
@@ -338,3 +343,79 @@ def test_aceita_srt_e_vtt(midia_teste, nome):
 
     assert not at.exception
     assert not any("marcação de tempo" in e.value for e in at.error)
+
+
+# --------------------------------------------------------------------------- #
+# Onde salvar: pasta e nome escolhidos pelo usuário
+# --------------------------------------------------------------------------- #
+
+
+def test_pasta_padrao_segue_o_arquivo_escolhido(midia_teste):
+    """O padrão é a pasta do próprio arquivo — não um caminho fixo."""
+    from ui import pasta_padrao
+
+    assert pasta_padrao(midia_teste) == midia_teste.parent
+
+
+def test_pasta_padrao_sem_arquivo_usa_uma_pasta_do_usuario():
+    """Sem caminho local (upload), a sugestão vem do sistema, não do código."""
+    from ui import pasta_padrao
+
+    pasta = pasta_padrao()
+    assert pasta.is_dir()
+    assert pasta == Path.home() or Path.home() in pasta.parents
+
+
+def test_tela_2_nome_padrao_depende_do_modo(midia_teste, transcricao_mockada):
+    at = _abrir()
+    _legendar_upload(at, midia_teste)
+    _trocar_de_tela(at, INSERCAO)
+
+    assert _campo(at, "Nome do arquivo").value == "teste_legendado.mp4"
+
+    _radio(at, "Modo").set_value("embutir")
+    at.run()
+    assert _campo(at, "Nome do arquivo").value == "teste_comlegenda.mp4"
+
+
+def test_tela_2_salva_o_video_na_pasta_escolhida(
+    midia_teste, transcricao_mockada, tmp_path
+):
+    """A pasta escolhida na tela é a pasta onde o arquivo aparece."""
+    pasta = tmp_path / "meus videos"
+
+    at = _abrir()
+    _legendar_upload(at, midia_teste)
+    _trocar_de_tela(at, INSERCAO)
+
+    _definir_saida(at, pasta, "resultado.mp4")
+    assert not pasta.exists(), "digitar o caminho não deveria criar pasta nenhuma"
+
+    next(b for b in at.button if b.label == "Inserir legenda").click()
+    at.run()
+
+    assert not at.exception, at.exception
+    assert (pasta / "resultado.mp4").is_file()
+
+
+def test_tela_1_salva_a_legenda_na_pasta_escolhida(
+    midia_teste, transcricao_mockada, tmp_path
+):
+    """Além do download, a legenda pode ser gravada numa pasta escolhida."""
+    pasta = tmp_path / "legendas"
+
+    at = _abrir()
+    _legendar_upload(at, midia_teste)
+
+    _campo(at, "Pasta de destino").set_value(str(pasta))
+    at.run()
+    _campo(at, "Nome do arquivo").set_value("legenda.srt")
+    at.run()
+
+    next(b for b in at.button if b.label == "Salvar legenda").click()
+    at.run()
+
+    alvo = pasta / "legenda.srt"
+    assert not at.exception, at.exception
+    assert alvo.is_file()
+    assert "00:00:00,500 --> 00:00:01,800" in alvo.read_text(encoding="utf-8")

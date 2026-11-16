@@ -359,6 +359,75 @@ def decodificar_texto(dados: bytes) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Pasta de destino
+# --------------------------------------------------------------------------- #
+
+
+def caminho_local(origem: object) -> Path | None:
+    """Caminho em disco do arquivo escolhido — None quando ele veio por upload."""
+    if isinstance(origem, (str, Path)):
+        caminho = Path(origem)
+        if caminho.is_file():
+            return caminho
+    return None
+
+
+def pasta_padrao(origem: object | None = None) -> Path:
+    """Pasta sugerida para os arquivos gerados.
+
+    A regra é sempre derivada do sistema onde o app está rodando: a pasta do
+    arquivo escolhido, senão a de Downloads, a de Vídeos ou a pasta do usuário.
+    Não existe caminho fixo no código.
+    """
+    caminho = caminho_local(origem) if origem is not None else None
+    if caminho is not None:
+        return caminho.parent
+
+    for nome in ("Downloads", "Videos", "Vídeos"):
+        candidata = Path.home() / nome
+        if candidata.is_dir():
+            return candidata
+
+    return Path.home()
+
+
+def campo_pasta(
+    rotulo: str,
+    *,
+    chave: str,
+    origem: object | None = None,
+    ajuda: str = "",
+) -> Path | None:
+    """Pede a pasta onde salvar e devolve o caminho (ou None se ainda não vale).
+
+    Não cria a pasta: ela é criada no momento de salvar, para não deixar pastas
+    vazias para trás enquanto o usuário ainda digita o caminho.
+    """
+    texto = (
+        st.text_input(
+            rotulo,
+            value=str(pasta_padrao(origem)),
+            key=chave,
+            help=ajuda
+            or "Pasta onde o arquivo será salvo. Ela é criada se não existir.",
+        )
+        .strip()
+        .strip('"')
+    )
+
+    if not texto:
+        st.info("Informe uma pasta para salvar.")
+        return None
+
+    pasta = Path(texto).expanduser()
+    if pasta.exists() and not pasta.is_dir():
+        st.error(f"Isto é um arquivo, não uma pasta: {pasta}")
+        return None
+
+    return pasta
+
+
+# --------------------------------------------------------------------------- #
 # Campos de arquivo
 # --------------------------------------------------------------------------- #
 
@@ -379,7 +448,7 @@ def campo_arquivo(
         texto = (
             st.text_input(
                 rotulo,
-                placeholder=r"C:\Users\SeuUsuario\Videos\video.mp4",
+                placeholder="Ex.: Caminho completo até o arquivo de vídeo ou áudio",
                 help="Cole o caminho completo. Aspas de 'Copiar como caminho' são aceitas.",
                 key=f"caminho_{prefixo}",
             )

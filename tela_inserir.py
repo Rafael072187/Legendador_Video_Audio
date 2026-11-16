@@ -22,6 +22,7 @@ from ui import (
     CAMINHO,
     UPLOAD,
     campo_arquivo,
+    campo_pasta,
     cartao,
     decodificar_texto,
     formatar_duracao,
@@ -264,36 +265,54 @@ def render() -> None:
                 "ser ligada e desligada no player."
             )
 
-        # O destino é editável; o padrão fica ao lado do vídeo, com outro nome.
-        destino = st.text_input(
-            "Salvar como",
-            value=str(destino_padrao(video, modo)),
-            key=f"destino_{modo}",
-            help=(
-                "Caminho completo do arquivo de saída. O vídeo original não é alterado."
+        # A pasta e o nome são escolhidos; o padrão fica ao lado do vídeo, com
+        # outro nome, e o vídeo original nunca é alterado.
+        pasta = campo_pasta(
+            "Pasta de destino",
+            chave="pasta_saida_video",
+            origem=video,
+            ajuda=(
+                "Pasta onde o vídeo legendado será salvo. O padrão é a pasta do "
+                "vídeo original — troque à vontade."
             ),
+        )
+        nome_saida = st.text_input(
+            "Nome do arquivo",
+            value=destino_padrao(video, modo).name,
+            key=f"nome_saida_{modo}",
+            help="O original nunca é sobrescrito: mude o nome se quiser.",
+        ).strip()
+
+        destino = (
+            (Path(pasta) / nome_saida) if pasta is not None and nome_saida else None
         )
 
         chave_entrada = f"{chave_video}::{modo}::{destino}"
         if st.session_state.get(CHAVE_ENTRADA_INSERCAO) != chave_entrada:
             st.session_state.pop(CHAVE_RESULTADO_INSERCAO, None)
 
-        pedido = st.button("Inserir legenda", type="primary")
+        pedido = st.button("Inserir legenda", type="primary", disabled=destino is None)
 
-    if pedido:
+    if pedido and destino is not None:
         with st.status("Colocando a legenda...", expanded=True) as status:
 
             def atualizar(mensagem: str) -> None:
                 status.update(label=mensagem)
 
             try:
+                # A pasta pode ter sido digitada agora: criá-la só aqui evita
+                # deixar pastas vazias enquanto o usuário ainda está digitando.
+                destino.parent.mkdir(parents=True, exist_ok=True)
                 resultado_ins = inserir_legenda(
                     video,
                     legenda,
                     modo=modo,
-                    destino=Path(destino.strip().strip('"')),
+                    destino=destino,
                     progresso=atualizar,
                 )
+            except OSError as exc:
+                status.update(label="Não foi possível criar a pasta", state="error")
+                st.error(f"Não foi possível criar a pasta {destino.parent}: {exc}")
             except ErroLegendagem as exc:
                 status.update(label="Não foi possível inserir a legenda", state="error")
                 st.error(str(exc))
